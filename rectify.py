@@ -1,6 +1,8 @@
 import math
 import numpy as np
 import scipy as sp
+import time
+
 import matplotlib.pyplot as plt
 from matplotlib.image import AxesImage
 from scipy.misc import imread, imsave
@@ -43,25 +45,25 @@ class PairPoints(object):
 
 
 def get_coresponding_pair_points(points, padding=0):
-    # return [
-    #     PairPoints(Point(34, 56), Point(34, 56)),
-    #     PairPoints(Point(34, 56), Point(34, 56)),
-    #     PairPoints(Point(34, 56), Point(34, 56)),
-    #     PairPoints(Point(34, 56), Point(34, 56)),
-    # ]
+    """
+    Return:
+        pair_points (array<PairPoints>)
+    """
     assert len(points) == 4
-    # h = points[2].x - points[1].x
-    # w = points[1].y - points[0].y
     xs = [p.x for p in points]
     ys = [p.y for p in points]
-    top = int(min(ys))
-    bottom = int(max(ys))
 
-    right = int(max(xs))
-    left = int(min(xs))
-    # pad_x = 
+    xs = sorted(xs)
+    ys = sorted(ys)
+
+    top = int(ys[0])
+    bottom = int(ys[-1])
+
+    right = int(xs[-1])
+    left = int(xs[0])
+
+    w = int(math.sqrt((xs[-1]-xs[-2])**2 + (ys[-1]-ys[-2])**2))
     h = bottom - top
-    w = right - left
 
     p2_points = [
         Point(0 + padding, 0 + padding),
@@ -72,8 +74,8 @@ def get_coresponding_pair_points(points, padding=0):
     pair_points = []
     for p1, p2 in zip(points, p2_points):
         pair_points.append(PairPoints(p1, p2))
-    return pair_points
-
+    return pair_points     
+     
 
 def compute_homograpy_matrix(pair_points):
     """
@@ -103,6 +105,7 @@ def rectify_image(im, H, cropped_rect=None, crop_output=True, padding=0):
     """
     rectify_image by Homograpy matrix
     """
+    t0 = time.time()
     h, w = im.shape[:2]
     rectified_im = np.zeros(shape=(im.shape[0] + 2 * padding, im.shape[1] + 2 * padding, im.shape[2]))
     cnt = 0
@@ -118,7 +121,7 @@ def rectify_image(im, H, cropped_rect=None, crop_output=True, padding=0):
             # p2 = np.squeeze(p2)
             # print p2
             p2 = Point(int(p2[0] * 1.0 / p2[2]), int(p2[1] * 1.0 / p2[2]))
-            if p2.x >= 0 and p2.y >= 0 and p2.y <= h and p2.x <= w:
+            if p2.x >= 0 and p2.y >= 0 and p2.y < h and p2.x < w:
                 # print p2
                 rectified_im[p2.y, p2.x, :] = im[j, i, :]
                 if most_right < p2.x:
@@ -129,11 +132,28 @@ def rectify_image(im, H, cropped_rect=None, crop_output=True, padding=0):
     # total = (h * w) if not cropped_rect else cropped_rect.area()
     # assert total == cnt_total, "{} != {}".format(total, cnt_total)
     print "cnt: {}/{} ({}%)".format(cnt, cnt_total, cnt * 100.0 / cnt_total)
-    # print
+    print "Time: {}".format(time.time() - t0)
     if not crop_output:
         return rectified_im
     else:
         return rectified_im[:most_bottom,:most_right,:]
+
+def rectify_image2(im, H, cropped_rect=None, crop_output=True, padding=0):
+    """
+    Vectorized version
+    """
+    t0 = time.time()
+    h, w = im.shape[:2]
+    rectified_im = np.zeros(shape=(im.shape[0] + 2 * padding, im.shape[1] + 2 * padding, im.shape[2]))
+    cnt = 0
+    cnt_total = 0
+    most_right, most_bottom = (0, 0)
+    
+def fill_zero_pixels_by_interpolate(im):
+    """
+    Fill zero pixels by (bi) linear interpolate from neighboor pixels
+    """
+    pass
 
 def pick_4_points_on_the_same_plane(im_path):
     fig, ax = plt.subplots()
@@ -144,22 +164,17 @@ def pick_4_points_on_the_same_plane(im_path):
 
     def onpick_image(event):
         artist = event.artist
-        print event
         if isinstance(event.artist, AxesImage):
             im_t = artist
             A = im_t.get_array()
             print("onpick_point", A.shape)
 
     def onclick_point(event):
-        # print('button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-        #       (event.button, event.x, event.y, event.xdata, event.ydata))
-        # points.append(Point(int(event.ydata), int(event.xdata)))
-        points.append(Point(int(event.xdata), int(event.ydata)))
+        points.append(Point(int(event.xdata) - 1, int(event.ydata) - 1))
         if len(points) >= 4:
             plt.close(fig)
             print "Points: {}".format(points)
 
-    # fig.canvas.mpl_connect('pick_event', onpick_images)
     fig.canvas.mpl_connect('button_press_event', onclick_point)
     plt.show()
     return points
@@ -169,9 +184,9 @@ def get_left_right_top_bottom(h, w, points):
     xs = [p.x for p in points]
     ys = [p.y for p in points]
     top = int(max(0, min(ys)))
-    bottom = int(min(h, max(ys)))
+    bottom = int(min(h - 1, max(ys)))
 
-    right = int(min(w, max(xs)))
+    right = int(min(w - 1, max(xs)))
     left = int(max(0, min(xs)))
     return (left, right, top, bottom)
 
@@ -200,17 +215,16 @@ def main():
     im_path = "arsenal_wall.jpg"
     im = imread(im_path)
     h, w = im.shape[:2]
-    padding = int(0.2 * min(w, h))
-    # padding = 0
+    # padding = int(0.1 * min(w, h))
+    padding = 0
     p1_points = pick_4_points_on_the_same_plane(im_path)
     pair_points = get_coresponding_pair_points(points=p1_points, padding=padding)
     H = compute_homograpy_matrix(pair_points=pair_points)
-    # cropped_im, crop_rect = crop_image(im, points=p1_points, padding=padding)
-    cropped_im, crop_rect = crop_image(im, points=p1_points)
+    cropped_im, crop_rect = crop_image(im, points=p1_points, padding=padding)
     print "Cropped Image : {}".format(cropped_im.shape)
     imsave("in.jpg", cropped_im)
-    # rectified_im = rectify_image(im, H, crop_rect, padding=padding)
-    rectified_im = rectify_image(im, H, padding=padding)
+    rectified_im = rectify_image(im, H, crop_rect, padding=padding)
+    # rectified_im = rectify_image(im, H, padding=padding)
     print "Rectified Image : {}".format(rectified_im.shape)
     imsave("out.jpg", rectified_im)
     # plt.figure()
