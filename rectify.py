@@ -7,6 +7,7 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.image import AxesImage
 from scipy.misc import imread, imsave
+from imageio import imwrite
 
 
 class Point(object):
@@ -257,7 +258,7 @@ def main():
   # rectified_im = rectify_image(im, H, crop_rect, padding=padding)
   rectified_im = rectify_image(im, H, padding=padding)
   print("Rectified Image : {}".format(rectified_im.shape))
-  imsave("out.jpg", rectified_im)
+  imwrite("out.jpg", rectified_im.astype(np.uint8))
   # plt.figure()
   # plt.imshow(rectified_im)
   # plt.show()
