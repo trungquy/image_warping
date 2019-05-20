@@ -6,8 +6,8 @@ import time
 
 import matplotlib.pyplot as plt
 from matplotlib.image import AxesImage
-from scipy.misc import imread, imsave
-from imageio import imwrite
+# from scipy.misc import imread, imsave
+from imageio import imwrite, imread
 
 
 class Point(object):
@@ -53,20 +53,17 @@ def get_coresponding_pair_points(points, padding=0):
         pair_points (array<PairPoints>)
     """
   assert len(points) == 4
-  xs = [p.x for p in points]
-  ys = [p.y for p in points]
-
-  xs = sorted(xs)
-  ys = sorted(ys)
-
-  top = int(ys[0])
-  bottom = int(ys[-1])
-
-  right = int(xs[-1])
-  left = int(xs[0])
-
-  w = int(math.sqrt((xs[-1] - xs[-2])**2 + (ys[-1] - ys[-2])**2))
-  h = bottom - top
+  xs = np.array([int(p.x) for p in points])
+  ys = np.array([int(p.y) for p in points])  
+  
+  w = int(0.5 * (
+    ((xs[0] - xs[1])**2 + (ys[0] - ys[1])**2)**0.5
+    + ((xs[2] - xs[3])**2 + (ys[2] - ys[3])**2)**0.5
+  ))
+  h = int(0.5 * (
+    ((xs[0] - xs[3])**2 + (ys[0] - ys[3])**2)**0.5
+    + ((xs[1] - xs[2])**2 + (ys[1] - ys[2])**2)**0.5
+  ))
 
   p2_points = [
       Point(0 + padding, 0 + padding),
@@ -241,8 +238,10 @@ def draw_lines(im, points, path="in_lines.jpg"):
     plt.savefig(path)
 
 
-def main():
-  im_path = "arsenal_wall.jpg"
+def main():  
+  # im_path = "parliament.jpg"
+  # im_path = "cross_trainer.jpg"
+  im_path = "price.jpg"
   im = imread(im_path)
   h, w = im.shape[:2]
   # padding = int(0.1 * min(w, h))
@@ -256,7 +255,7 @@ def main():
   # print ("Cropped Image : {}".format(cropped_im.shape))
   # imsave("in.jpg", cropped_im)
   # rectified_im = rectify_image(im, H, crop_rect, padding=padding)
-  rectified_im = rectify_image(im, H, padding=padding)
+  rectified_im = rectify_image(im, H, padding=padding, crop_output=True)
   print("Rectified Image : {}".format(rectified_im.shape))
   imwrite("out.jpg", rectified_im.astype(np.uint8))
   # plt.figure()
