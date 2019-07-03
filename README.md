@@ -1,4 +1,4 @@
-Image Wrapping using Homography Transformation
+Image Warpping using Homography Transformation
 
 - Step 1: Manually pick 4 points of **one rectangle** in the **same plane** in original image
 - Step 2: Compute homography matrix H
